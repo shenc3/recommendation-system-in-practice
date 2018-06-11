@@ -7,16 +7,24 @@ import math
 import numpy as np
 import pandas as pd
 
+from operator import itemgetter
 from sklearn.model_selection import train_test_split
 
 
-train = {
-    'A': {'a', 'b', 'c'},
-    'B': {'a', 'c'},
-    'C': {'b', 'c'},
-    'D': {'c', 'd', 'e'}
-}
+train = [
+    ('A', 'a'),
+    ('A', 'b'),
+    ('A', 'd'),
+    ('B', 'a'),
+    ('B', 'c'),
+    ('C', 'b'),
+    ('C', 'e'),
+    ('D', 'c'),
+    ('D', 'd'),
+    ('D', 'e')
+]
 
+train = pd.DataFrame(train, columns=['UserID', 'MovieID'])
 
 # 读入评分数据
 ratings = pd.read_table(
@@ -27,6 +35,7 @@ ratings = pd.read_table(
     )
 
 # 构造训练集和测试集
+# 因为点评行为有时间顺序，所以将早期的数据作为训练集，后期的数据作为测试集
 train, test = train_test_split(ratings, test_size=0.125, random_state=42)
 
 
@@ -37,7 +46,7 @@ train, test = train_test_split(ratings, test_size=0.125, random_state=42)
 
 def UserSimilarity(train):
     '''遍历整个数据集，计算用户相似度'''
-    user_items = ratings.groupby('UserID')['MovieID'].agg(lambda x: set(x))
+    user_items = train.groupby('UserID')['MovieID'].agg(lambda x: set(x))
     W = dict()
     for u in user_items.index:
         W[u] = dict()
@@ -54,7 +63,7 @@ def UserSimilarity2(train):
       先遍历倒排表，得到有交叉的用户数据，然后再计算相似度，避免计算很多无交集的用户组合
       感觉可以再省掉一半的计算量
     '''
-    train = train.sample(10000)
+    # train = train.sample(10000)
     item_users = train.groupby('MovieID')['UserID'].agg(lambda x: set(x))
     C = dict()
     N = dict()
@@ -81,4 +90,23 @@ def UserSimilarity2(train):
     return W
 
 
+def recommend(user, train, similarity, k=3):
+    '''为user推荐商品
+      根据相似度结果推荐和user最接近的k个用户感兴趣，但user没有互动过的商品
+    '''
+    recommendation = dict()
+    user_items = train.groupby('UserID')['MovieID'].agg(lambda x: set(x))
+    item_list = user_items[user]
+    for v, sim in sorted(
+            similarity[user].items(),
+            key=itemgetter(1),
+            reverse=True)[:k]:
+        for item in user_items[v]:
+            if item in item_list:
+                continue
+            recommendation.setdefault(item, 0)
+            # 其中1为r_vi，表示用户v对商品item的兴趣
+            recommendation[item] += similarity[user][v] * 1
+    result = sorted(recommendation.items(), key=itemgetter(1), reverse=True)
+    return result
 
