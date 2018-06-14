@@ -36,8 +36,11 @@ ratings = pd.read_table(
 
 # 构造训练集和测试集
 # 因为点评行为有时间顺序，所以将早期的数据作为训练集，后期的数据作为测试集
-train, test = train_test_split(ratings, test_size=0.125, random_state=42)
+def split_dataset(dataset, test_size=0.2):
+    train_idx = np.ceil(dataset.shape[0] * (1 - test_size))
+    return dataset[:train_idx], dataset[train_idx:]
 
+train, test = split_dataset(ratings)
 
 # 评测函数
 
