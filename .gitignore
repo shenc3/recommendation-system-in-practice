@@ -1,2 +1,5 @@
 # Ignore input directory
 input/*
+
+# Ignore  jupyter notebook checkpoint
+.ipynb_checkpoints/*
